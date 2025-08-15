@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -27,7 +29,12 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".DLNAService" />
+        <service
+            android:name=".DLNAService"
+            android:foregroundServiceType="mediaPlayback"
+            tools:ignore="ForegroundServicePermission">
+
+        </service>
         <service android:name="org.fourthline.cling.android.AndroidUpnpServiceImpl" />
     </application>
 

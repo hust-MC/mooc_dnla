@@ -33,6 +33,13 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    
+    packaging {
+        resources {
+            excludes += "/META-INF/beans.xml"
+        }
+    }
+
 }
 
 dependencies {

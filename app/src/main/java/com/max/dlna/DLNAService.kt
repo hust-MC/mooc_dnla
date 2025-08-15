@@ -6,17 +6,22 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import org.fourthline.cling.binding.annotations.AnnotationLocalServiceBinder
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import org.fourthline.cling.android.AndroidUpnpService
+import org.fourthline.cling.android.AndroidUpnpServiceImpl
+import org.fourthline.cling.model.DefaultServiceManager
 import org.fourthline.cling.model.meta.DeviceDetails
 import org.fourthline.cling.model.meta.DeviceIdentity
 import org.fourthline.cling.model.meta.LocalDevice
+import org.fourthline.cling.model.meta.LocalService
 import org.fourthline.cling.model.meta.ManufacturerDetails
 import org.fourthline.cling.model.meta.ModelDetails
 import org.fourthline.cling.model.types.UDADeviceType
@@ -54,6 +59,13 @@ class DLNAService : Service() {
             }
 
         }
+
+        applicationContext.bindService(
+            Intent(this, AndroidUpnpServiceImpl::class.java),
+            serviceConnection!!,
+            Context.BIND_AUTO_CREATE
+        )
+
     }
 
     private fun createDevice() {
@@ -68,9 +80,16 @@ class DLNAService : Service() {
                 ModelDetails("MaxCarPlayer", "车载DLNA播放器", "v1.0")
             )
 
+            val binder = AnnotationLocalServiceBinder()
+
+            @Suppress("UNCHECKED_CAST")
+            val mediaRendererService =
+                binder.read(MediaRendererService::class.java) as LocalService<MediaRendererService>
+            mediaRendererService.manager =
+                DefaultServiceManager(mediaRendererService, MediaRendererService::class.java)
+
             // 根据描述创建设备
-            // TODO: LocalDevice的第三个参数未完成
-            val localDevice = LocalDevice(identity, type, details, arrayOf())
+            val localDevice = LocalDevice(identity, type, details, arrayOf(mediaRendererService))
 
             // 注册到网络
             upnpService?.registry?.addDevice(localDevice)
