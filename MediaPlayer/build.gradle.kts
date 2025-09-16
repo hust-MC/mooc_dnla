@@ -40,4 +40,17 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+
+    // 以下为项目添加==============
+
+    // 必选，此为exoPlayer核心代码，即播放内核
+    implementation("com.google.android.exoplayer:exoplayer-core:2.19.1")
+    // 推荐，格式支持
+    implementation("com.google.android.exoplayer:exoplayer-hls:2.19.1")
+
+    // 可选，此为UI层控件，可以自行替换，课程仅做演示
+    implementation("com.google.android.exoplayer:exoplayer-ui:2.19.1")
+
+
 }

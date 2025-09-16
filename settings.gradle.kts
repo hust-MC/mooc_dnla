@@ -27,3 +27,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "DLNA"
 include(":app")
+include(":MediaPlayer")
