@@ -1,11 +1,27 @@
 package com.max.mediaplayer
 
+import android.content.Context
+import android.util.Log
+import androidx.annotation.OptIn
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+
 // 设计关键点：
 // 1、设计状态枚举
 // 2、监听状态接口
 // 3、简介的API
+@OptIn(UnstableApi::class)
+class MediaPlayerManager(private val context: Context) {
 
-class MediaPlayerManager {
+    private var exoPlayer: ExoPlayer? = null
+    private var currentUri = ""
+    private var shouldAutoPlay = false
+    private var currentState = PlaybackState.STOPPED
+    private var duration: Int = 0
+    private var stateListener: MediaStateListener? = null
 
     /**
      * 播放状态枚举
@@ -27,11 +43,88 @@ class MediaPlayerManager {
     }
 
     /**
-     * 设置url并播放视
+     * 设置url并自动播放视频
      * @param uri 视频地址
      */
     fun setMediaURIAndPlay(uri: String) {
-        // TODO: 设置url并播放视频
+        shouldAutoPlay = true
+        setMediaURI(uri)
+    }
+
+    private fun setMediaURI(uri: String) {
+        currentUri = uri
+        Log.d(TAG, "设置媒体URI：$uri")
+        // 播放之前释放播放器资源
+        release()
+        setupExoPlayer(uri)
+    }
+
+    private fun setupExoPlayer(uri: String) {
+
+        val mediaSourceFactory = DefaultMediaSourceFactory(context).setDataSourceFactory(
+            MediaCacheFactory.getCacheFactory(
+                context
+            )
+        )
+        exoPlayer = ExoPlayer.Builder(context).setMediaSourceFactory(mediaSourceFactory).build()
+        exoPlayer?.addListener(object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                Log.d(TAG, "ExoPlayer播放错误：${error.message}")
+                currentState = PlaybackState.ERROR
+                stateListener?.onPlaybackStateChanged(currentState)
+                stateListener?.onError("播放失败：${error.message}")
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) {
+                    currentState = PlaybackState.PLAYING
+                    stateListener?.onPlaybackStateChanged(currentState)
+                } else {
+                    // 播放器不在 播放状态，可能是暂停或者播放结束
+                    // STATE_STOPPED会处理停止状态
+                    if (exoPlayer?.playbackState == Player.STATE_READY) {
+                        currentState = PlaybackState.PAUSED
+                        stateListener?.onPlaybackStateChanged(currentState)
+                    }
+                }
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                when (playbackState) {
+                    Player.STATE_READY -> {
+                        Log.d(TAG, "ExoPlayer状态：就绪")
+
+                        // 获取视频时长
+                        val durationMs = exoPlayer?.duration?.toInt() ?: 0
+                        if (durationMs > 0) {
+                            duration = durationMs
+                            stateListener?.onPrepared(durationMs)
+                        }
+
+                        if (shouldAutoPlay) {
+                            exoPlayer?.play()
+                            shouldAutoPlay = false
+                        }
+                    }
+
+                    Player.STATE_ENDED -> {
+                        Log.d(TAG, "ExoPlayer状态：播放结束")
+                        currentState = PlaybackState.STOPPED
+                        stateListener?.onPlaybackStateChanged(currentState)
+                        stateListener?.onPlaybackCompleted()
+                    }
+
+                    Player.STATE_BUFFERING -> {
+                        Log.d(TAG, "ExoPlayer状态：缓冲中")
+                        stateListener?.onBufferingUpdate(50)
+                    }
+
+                    Player.STATE_IDLE -> {
+                        Log.d(TAG, "ExoPlayer状态：空闲")
+                    }
+                }
+            }
+        })
     }
 
     /**
@@ -88,5 +181,9 @@ class MediaPlayerManager {
     fun getDuration(): Int {
         // TODO: 获取视频总时长
         return -1
+    }
+
+    companion object {
+        const val TAG = "MediaPlayerManager"
     }
 }

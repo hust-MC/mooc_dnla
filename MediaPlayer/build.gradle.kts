@@ -45,12 +45,12 @@ dependencies {
     // 以下为项目添加==============
 
     // 必选，此为exoPlayer核心代码，即播放内核
-    implementation("com.google.android.exoplayer:exoplayer-core:2.19.1")
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
     // 推荐，格式支持
-    implementation("com.google.android.exoplayer:exoplayer-hls:2.19.1")
+    implementation("androidx.media3:media3-ui:1.8.0")
 
     // 可选，此为UI层控件，可以自行替换，课程仅做演示
-    implementation("com.google.android.exoplayer:exoplayer-ui:2.19.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.8.0")
 
 
 }
