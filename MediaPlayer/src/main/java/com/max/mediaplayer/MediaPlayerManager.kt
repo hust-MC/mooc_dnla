@@ -1,8 +1,12 @@
 package com.max.mediaplayer
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.view.Surface
 import androidx.annotation.OptIn
+import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -16,12 +20,14 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 @OptIn(UnstableApi::class)
 class MediaPlayerManager(private val context: Context) {
 
+    private var surface: Surface? = null
     private var exoPlayer: ExoPlayer? = null
     private var currentUri = ""
     private var shouldAutoPlay = false
     private var currentState = PlaybackState.STOPPED
     private var duration: Int = 0
     private var stateListener: MediaStateListener? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     /**
      * 播放状态枚举
@@ -43,6 +49,23 @@ class MediaPlayerManager(private val context: Context) {
     }
 
     /**
+     * 设置Surface，抛给底层播放内核，让其在对应的Surface上渲染视频
+     */
+    fun setSurface(surface: Surface?) {
+        this.surface = surface
+        runOnMainThread {
+            exoPlayer?.setVideoSurface(surface)
+        }
+    }
+
+    /**
+     * 设置状态监听器，用于回调播放器的状态
+     */
+    fun setStateListener(listener: MediaStateListener) {
+        stateListener = listener
+    }
+
+    /**
      * 设置url并自动播放视频
      * @param uri 视频地址
      */
@@ -55,8 +78,11 @@ class MediaPlayerManager(private val context: Context) {
         currentUri = uri
         Log.d(TAG, "设置媒体URI：$uri")
         // 播放之前释放播放器资源
-        release()
-        setupExoPlayer(uri)
+
+        runOnMainThread {
+            release()
+            setupExoPlayer(uri)
+        }
     }
 
     private fun setupExoPlayer(uri: String) {
@@ -125,34 +151,50 @@ class MediaPlayerManager(private val context: Context) {
                 }
             }
         })
+        if (surface != null) {
+            exoPlayer?.setVideoSurface(surface)
+        }
+
+        val mediaItem = MediaItem.fromUri(uri)
+        exoPlayer?.setMediaItem(mediaItem)
+        exoPlayer?.prepare()
+
     }
 
     /**
      * 播放视频
      */
     fun play() {
-        // TODO: 播放视频
+        runOnMainThread { exoPlayer?.play() }
     }
 
     /**
      * 暂停视频
      */
     fun pause() {
-        // TODO: 暂停
+        runOnMainThread { exoPlayer?.pause() }
     }
 
     /**
      * 停止播放
      */
     fun stop() {
-        // TODO: 停止播放
+        runOnMainThread {
+            exoPlayer?.stop()
+            currentState = PlaybackState.STOPPED
+            stateListener?.onPlaybackStateChanged(currentState)
+        }
     }
 
     /**
      * 释放播放器资源
      */
     fun release() {
-        // TODO: 释放播放器资源
+        runOnMainThread {
+            exoPlayer?.release()
+            exoPlayer = null
+            currentState = PlaybackState.STOPPED
+        }
     }
 
     /**
@@ -160,7 +202,7 @@ class MediaPlayerManager(private val context: Context) {
      * @param positionMs 进度值，MS
      */
     fun seekTo(positionMs: Int) {
-        // TODO: 设置进度
+        runOnMainThread { exoPlayer?.seekTo(positionMs.toLong()) }
     }
 
     /**
@@ -169,8 +211,14 @@ class MediaPlayerManager(private val context: Context) {
      * @return 当前播放进度
      */
     fun getCurrentPosition(): Int {
-        // TODO: 获取当前播放进度
-        return -1
+        return exoPlayer?.currentPosition?.toInt() ?: 0
+    }
+
+    /**
+     * 获取当前播放器的状态
+     */
+    fun getCurrentState(): PlaybackState {
+        return currentState
     }
 
     /**
@@ -179,8 +227,19 @@ class MediaPlayerManager(private val context: Context) {
      * @return 视频总时长
      */
     fun getDuration(): Int {
-        // TODO: 获取视频总时长
-        return -1
+        return duration
+    }
+
+    /**
+     * 在主线程执行操作
+     */
+    private fun runOnMainThread(action: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            // 如果当前为主线程，那么直接执行
+            action()
+        } else {
+            mainHandler.post(action)
+        }
     }
 
     companion object {

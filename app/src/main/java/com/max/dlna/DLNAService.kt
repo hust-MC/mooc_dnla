@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.max.dlna.MediaRendererService.Companion.initialize
 import org.fourthline.cling.android.AndroidUpnpService
 import org.fourthline.cling.android.AndroidUpnpServiceImpl
 import org.fourthline.cling.model.DefaultServiceManager
@@ -45,6 +46,7 @@ class DLNAService : Service() {
     override fun onCreate() {
         super.onCreate()
 
+        initialize(applicationContext)
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
 
@@ -87,7 +89,7 @@ class DLNAService : Service() {
                 binder.read(MediaRendererService::class.java) as LocalService<MediaRendererService>
             mediaRendererService.manager =
                 DefaultServiceManager(mediaRendererService, MediaRendererService::class.java)
-
+            initialize(this@DLNAService)
             // 根据描述创建设备
             val localDevice = LocalDevice(identity, type, details, arrayOf(mediaRendererService))
 
